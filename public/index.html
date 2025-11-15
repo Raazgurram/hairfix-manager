@@ -162,28 +162,58 @@
                         if (user) {
                             setCurrentUser(user);
                             
-                            firestore.collection(V8_COLLECTIONS.users).doc(user.uid).onSnapshot((docSnap) => {
+                            const userDocRef = firestore.collection(V8_COLLECTIONS.users).doc(user.uid);
+                            
+                            // 1. Set up the listener for the user's role document
+                            const unsubUserDoc = userDocRef.onSnapshot(async (docSnap) => {
                                 if (docSnap.exists) {
+                                    // --- User document FOUND ---
                                     const userData = docSnap.data();
                                     setRole(userData.role);
                                     setBranchId(userData.branchId || null);
                                     setIsLoading(false);
                                 } else {
-                                    setRole(null); 
-                                    setBranchId(null);
+                                    // --- User document NOT FOUND ---
+                                    // This is a new user. We must check if they are the *first* user ever.
+                                    console.warn("User role document not found. Checking if this is the first app run...");
+                                    
+                                    // 2. Check if the 'users' collection is empty
+                                    try {
+                                        const usersCollection = await firestore.collection(V8_COLLECTIONS.users).limit(1).get();
+                                        
+                                        if (usersCollection.empty) {
+                                            // --- COLLECTION IS EMPTY ---
+                                            // This is the very first user. Grant them Admin.
+                                            console.log("This is the first run. Granting Admin access.");
+                                            setRole("Admin");
+                                            setBranchId(null);
+                                        } else {
+                                            // --- COLLECTION IS NOT EMPTY ---
+                                            // Other users exist. This is a new, unassigned user.
+                                            console.log("Other users exist. Access denied.");
+                                            setRole(null); // This will show the "Access Denied" screen
+                                            setBranchId(null);
+                                        }
+                                    } catch (collectionError) {
+                                        console.error("Error checking users collection:", collectionError);
+                                        setErrorMessage("Failed to check user collection permissions.");
+                                        setRole(null);
+                                        setBranchId(null);
+                                    }
                                     setIsLoading(false);
-                                    console.warn("User role document not found. Assuming Admin for initial setup/demo.");
-                                    // Good fallback for demo: set first user to Admin
-                                    setRole("Admin"); 
                                 }
                             }, (error) => {
                                 console.error("Error reading user role:", error);
                                 setErrorMessage("Permission Denied: Failed to load user role. Please check your Firestore Security Rules.");
                                 // Fallback for demo if rules are misconfigured
-                                setRole("Admin");
+                                setRole(null); // Default to no role on error
                                 setBranchId(null);
                                 setIsLoading(false);
                             });
+                            
+                            // Return this specific document listener
+                            return () => unsubUserDoc();
+
                         } else {
                             setCurrentUser(null);
                             setRole(null);
