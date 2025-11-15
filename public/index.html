@@ -10,9 +10,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- 
-      UPDATE: Upgraded from Firebase V8 to V9 'compat' libraries.
-      This gives us the modern V9 backend while maintaining 100% compatibility 
-      with the existing V8 syntax (e.g., firebase.firestore()).
+      Firebase V9 'compat' libraries.
     -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -38,37 +36,37 @@
         const memo = React.memo;
 
         // --- ENVIRONMENT VARIABLES (Accessing runtime provided configuration) ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDPP0tzpEzzx8-lwuZ3u6E1DUPNLXYPrgQ",
-  authDomain: "hairfix-inventory-app.firebaseapp.com",
-  projectId: "hairfix-inventory-app",
-  storageBucket: "hairfix-inventory-app.firebasestorage.app",
-  messagingSenderId: "467690326000",
-  appId: "1:467690326000:web:53110ce47ea42a817dbf35"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+        
+        // This is the default ID for the deployed app
+        const appId = 'default-app-id';
+        
+        //
+        // --- YOUR FIREBASE CONFIG IS PASTED HERE ---
+        //
+        const firebaseConfig = {
+          apiKey: "AIzaSyDPP0tzpEzzx8-lwuZ3u6E1DUPNLXYPrgQ",
+          authDomain: "hairfix-inventory-app.firebaseapp.com",
+          projectId: "hairfix-inventory-app",
+          storageBucket: "hairfix-inventory-app.firebasestorage.app",
+          messagingSenderId: "467690326000",
+          appId: "1:467690326000:web:53110ce47ea42a817dbf35"
+        };
+        
+        // This token is not available in production, so we set it to null.
+        const initialAuthToken = null; 
 
         // Initialize App (This uses V8/Compat syntax)
         let firebaseApp;
         let auth;
         let firestore;
 
+        // This check is now corrected to just see if the config exists
         if (firebaseConfig) {
             try {
                 firebaseApp = firebase.initializeApp(firebaseConfig);
                 auth = firebase.auth();
                 firestore = firebase.firestore();
                 
-                // V9 Compat syntax for settings is slightly different but V8 works
                 try {
                     firestore.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
                     firestore.enablePersistence().catch(err => console.log("Firestore persistence not supported or enabled."));
@@ -78,14 +76,12 @@ const app = initializeApp(firebaseConfig);
 
             } catch (e) {
                 console.error("Firebase initialization failed:", e);
-                // The App component will handle the error message display
             }
         } else {
-            console.error("Firebase config not available. Check environment variables.");
+            console.error("Firebase config is missing or invalid. Please paste your config from the Firebase Console into index.html.");
         }
         
         // --- FIREBASE V8 ACCESS FUNCTIONS ---
-        // V8 uses dot notation and global objects instead of V9 modular functions
         const V8_COLLECTIONS = {
             users: `artifacts/${appId}/public/data/users`,
             inventory: `artifacts/${appId}/public/data/inventory_stock`,
@@ -140,7 +136,7 @@ const app = initializeApp(firebaseConfig);
             // 1. Firebase Initialization and Auth
             useEffect(() => {
                 if (!firebaseApp || !firestore || !auth) {
-                    setErrorMessage("Firebase initialization failed. Please check your config object in the HTML file.");
+                    setErrorMessage("Firebase initialization failed. Please check your firebaseConfig object in index.html.");
                     setIsLoading(false);
                     return;
                 }
@@ -166,8 +162,6 @@ const app = initializeApp(firebaseConfig);
                         if (user) {
                             setCurrentUser(user);
                             
-                            // Fetch user role (V8 syntax)
-                            // NOTE: We use user.uid as the document ID for the users collection
                             firestore.collection(V8_COLLECTIONS.users).doc(user.uid).onSnapshot((docSnap) => {
                                 if (docSnap.exists) {
                                     const userData = docSnap.data();
@@ -184,7 +178,7 @@ const app = initializeApp(firebaseConfig);
                                 }
                             }, (error) => {
                                 console.error("Error reading user role:", error);
-                                setErrorMessage("Permission Denied: Failed to load user role. Please check Firestore Security Rules for the Users collection.");
+                                setErrorMessage("Permission Denied: Failed to load user role. Please check your Firestore Security Rules.");
                                 // Fallback for demo if rules are misconfigured
                                 setRole("Admin");
                                 setBranchId(null);
@@ -210,7 +204,7 @@ const app = initializeApp(firebaseConfig);
             useEffect(() => {
                 if (!db || !currentUser || !role) return;
 
-                // Inventory Subscription (V8 syntax)
+                // Inventory Subscription
                 const unsubInventory = db.collection(V8_COLLECTIONS.inventory).onSnapshot((snapshot) => {
                     const inventoryList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setAllInventory(inventoryList);
@@ -227,7 +221,6 @@ const app = initializeApp(firebaseConfig);
                     requestsList.sort((a, b) => {
                         if (a.status === 'Pending' && b.status !== 'Pending') return -1;
                         if (a.status !== 'Pending' && b.status === 'Pending') return 1;
-                        // Sort by timestamp descending
                         const tsA = a.requestTimestamp?.seconds || a.requestTimestamp / 1000 || 0;
                         const tsB = b.requestTimestamp?.seconds || b.requestTimestamp / 1000 || 0;
                         return tsB - tsA;
@@ -280,7 +273,6 @@ const app = initializeApp(firebaseConfig);
                     const historyQuery = db.collection(V8_COLLECTIONS.transferHistory);
                     unsubTransferHistory = historyQuery.onSnapshot((snapshot) => {
                         const historyList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        // Sort newest first
                         historyList.sort((a, b) => {
                             const tsA = a.timestamp?.seconds || a.timestamp / 1000 || 0;
                             const tsB = b.timestamp?.seconds || b.timestamp / 1000 || 0;
@@ -295,7 +287,6 @@ const app = initializeApp(firebaseConfig);
                 let unsubUsers = () => {};
                 if (role === 'Admin') {
                     unsubUsers = db.collection(V8_COLLECTIONS.users).onSnapshot((snapshot) => {
-                        // We use the doc ID (which is the uid) as the id
                         const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setAllUsers(usersList);
                     }, (error) => console.error("Error fetching users:", error));
@@ -320,7 +311,6 @@ const app = initializeApp(firebaseConfig);
 
             // Helper: Find user info by ID (uid)
             const findUserById = useCallback((userId) => {
-                // allUsers stores the doc id (uid) as 'id'
                 return allUsers.find(user => user.id === userId);
             }, [allUsers]);
 
@@ -336,11 +326,9 @@ const app = initializeApp(firebaseConfig);
                             <h2 className="text-xl font-bold mb-2">Application Error</h2>
                             <p className="text-sm">{errorMessage}</p>
                             <p className="mt-4 text-sm font-semibold">
-                                Action Required: You must grant read permission to all authenticated users for the 
-                                <code className="bg-red-200 p-1 rounded mx-1">users</code> collection in your Firebase Security Rules.
+                                Please check your Firestore Security Rules and your <code className="bg-red-200 p-1 rounded mx-1">firebaseConfig</code> object in `index.html`.
                             </p>
                         </div>
-                        {/* Render the rest of the Admin Dashboard if role was assumed */}
                         {role === 'Admin' && currentUser && (
                             <AdminDashboard 
                                 db={db}
@@ -433,7 +421,7 @@ const app = initializeApp(firebaseConfig);
                 { id: 'restock', name: 'Stock Movement & Restock' },
                 { id: 'branch_view', name: 'Branch Stock View & History' }, 
                 { id: 'products', name: 'Product Management' },
-                { id: 'user_mgmt', name: 'User Management' }, // NEW TAB
+                { id: 'user_mgmt', name: 'User Management' },
             ];
 
             return (
@@ -464,10 +452,8 @@ const app = initializeApp(firebaseConfig);
             const [activeTab, setActiveTab] = useState('dashboard');
             const [systemMessage, setSystemMessage] = useState({ type: '', text: '' });
 
-            // Filter Pending Requests
             const pendingRequests = useMemo(() => requests.filter(r => r.status === 'Pending'), [requests]);
             
-            // Generate branch lists
             const branches = useMemo(() => {
                 const branchIds = Array.from({ length: 16 }, (_, i) => `Branch_${String(i + 1).padStart(2, '0')}`);
                 return [WHOLESALE_BRANCH_ID, ...branchIds];
@@ -475,12 +461,9 @@ const app = initializeApp(firebaseConfig);
             const staffBranches = useMemo(() => branches.filter(b => b !== WHOLESALE_BRANCH_ID), [branches]);
 
 
-            // Find Low Stock Alerts (Admin view)
             const lowStockAlerts = useMemo(() => {
                 const alerts = [];
-                // branchStock is { branchId: { productId: data } }
                 Object.entries(branchStock).forEach(([branchId, products]) => {
-                    // Skip the wholesale pseudo-branch from alerts
                     if (branchId === WHOLESALE_BRANCH_ID) return;
 
                     Object.values(products).forEach(stockItem => {
@@ -498,11 +481,9 @@ const app = initializeApp(firebaseConfig);
                 return alerts;
             }, [branchStock, findProductById]);
 
-            // Handle Approval/Rejection of Request
             const handleApproval = async (request, newStatus) => {
                 setSystemMessage({ type: '', text: 'Processing request...' });
                 
-                // V8 Transaction syntax
                 try {
                     await db.runTransaction(async (transaction) => {
                         
@@ -510,10 +491,8 @@ const app = initializeApp(firebaseConfig);
                         const docId = `${request.branchId}_${request.productId}`;
                         const branchStockRef = db.collection(V8_COLLECTIONS.branchStock).doc(docId);
 
-                        // READS
                         const stockSnap = await transaction.get(branchStockRef);
 
-                        // Check stock existence/values before writing
                         if (newStatus === 'Approved') {
                             if (!stockSnap.exists) {
                                 throw new Error("Branch stock item not found for update.");
@@ -525,13 +504,11 @@ const app = initializeApp(firebaseConfig);
                                 throw new Error(`Insufficient stock at branch ${request.branchId}. Current: ${currentStock}, Requested: ${request.quantityRequested}`);
                             }
 
-                            // WRITES: Update Branch Stock
                             transaction.update(branchStockRef, {
                                 currentStock: newStock,
                             });
                         }
                         
-                        // WRITES: Update Request Status
                         transaction.update(requestRef, {
                             status: newStatus,
                             approvalTimestamp: Date.now(),
@@ -550,7 +527,6 @@ const app = initializeApp(firebaseConfig);
             const tabContent = {
                 'dashboard': (
                     <>
-                        {/* Display system message here as it's shared across tabs */}
                         {systemMessage.text && (
                             <div className={`p-3 mb-4 rounded-lg text-sm ${systemMessage.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                                 {systemMessage.text}
@@ -573,7 +549,7 @@ const app = initializeApp(firebaseConfig);
                         inventory={inventory} 
                         branchStock={branchStock} 
                         mainWarehouseStock={mainWarehouseStock}
-                        branches={branches} // Pass branches list
+                        branches={branches}
                         setSystemMessage={setSystemMessage}
                     />
                 ),
@@ -582,7 +558,7 @@ const app = initializeApp(firebaseConfig);
                         <BranchStockViewer 
                             inventory={inventory} 
                             branchStock={branchStock} 
-                            branches={branches} // Pass branches list
+                            branches={branches}
                             findProductById={findProductById} 
                         />
                         <TransferHistoryViewer 
@@ -601,7 +577,7 @@ const app = initializeApp(firebaseConfig);
                         setSystemMessage={setSystemMessage}
                     />
                 ),
-                'user_mgmt': ( // NEW CONTENT
+                'user_mgmt': (
                     <UserManagement
                         db={db}
                         allUsers={allUsers}
@@ -614,7 +590,6 @@ const app = initializeApp(firebaseConfig);
             return (
                 <div>
                     <AdminTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-                    {/* Render content and system message if not on dashboard tab */}
                     {activeTab !== 'dashboard' && systemMessage.text && (
                         <div className={`p-3 mb-4 rounded-lg text-sm ${systemMessage.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                             {systemMessage.text}
@@ -770,33 +745,25 @@ const app = initializeApp(firebaseConfig);
             const [quantity, setQuantity] = useState('');
             const [isSubmitting, setIsSubmitting] = useState(false);
             
-            // Get the current stock for display based on action type
             const sourceStock = useMemo(() => {
                 if (!selectedProduct) return 0;
-
-                if (actionType === 'ADD_TO_MWS') {
-                    return 0; // Source is external supplier
-                } else if (actionType === 'TRANSFER') {
-                    return mainWarehouseStock[selectedProduct] || 0; // Source is MWS (MWS map uses productId as key)
+                if (actionType === 'TRANSFER') {
+                    return mainWarehouseStock[selectedProduct] || 0;
                 }
                 return 0;
             }, [actionType, selectedProduct, mainWarehouseStock]);
 
             const destinationStock = useMemo(() => {
                 if (!selectedDestination || !selectedProduct) return 0;
-                
-                // branchStock structure: { branchId: { productId: data } }
                 return branchStock[selectedDestination]?.[selectedProduct]?.currentStock || 0;
             }, [selectedDestination, selectedProduct, branchStock]);
             
-            // Reset secondary fields when action changes
             useEffect(() => {
                 setSelectedDestination('');
                 setSelectedProduct('');
                 setQuantity('');
             }, [actionType]);
             
-            // --- STABILIZED STATE HANDLERS ---
             const handleQuantityChange = useCallback((e) => setQuantity(e.target.value), []);
             const handleProductChange = useCallback((e) => setSelectedProduct(e.target.value), []);
             const handleDestinationChange = useCallback((e) => setSelectedDestination(e.target.value), []);
@@ -817,48 +784,34 @@ const app = initializeApp(firebaseConfig);
                 setIsSubmitting(true);
                 setSystemMessage({ type: '', text: 'Processing stock movement...' });
                 
-                // V8 Transaction syntax
                 try {
                     await db.runTransaction(async (transaction) => {
                         const mwsRef = db.collection(V8_COLLECTIONS.mainWarehouseStock).doc(selectedProduct);
                         
                         if (actionType === 'ADD_TO_MWS') {
-                            // --- Scenario 1: Add stock from supplier directly to MWS ---
-                            
-                            // READS
                             const mwsSnap = await transaction.get(mwsRef);
                             const currentMWS = mwsSnap.exists ? mwsSnap.data().currentStock : 0;
-                            
-                            // WRITES
-                            // Use set with merge: true to handle both create and update
                             transaction.set(mwsRef, {
                                 currentStock: currentMWS + quantityNum,
                             }, { merge: true });
                             
                         } else if (actionType === 'TRANSFER') {
-                            // --- Scenario 2: Transfer stock from MWS to Branch (or Wholesale Client) ---
-
-                            // 2a. READS: Get MWS and Destination Stock snaps first
                             const mwsSnap = await transaction.get(mwsRef);
                             const destDocId = `${selectedDestination}_${selectedProduct}`;
                             const destStockRef = db.collection(V8_COLLECTIONS.branchStock).doc(destDocId);
                             const destStockSnap = await transaction.get(destStockRef);
 
-                            // VALIDATION (Check MWS stock)
                             const currentMWS = mwsSnap.exists ? mwsSnap.data().currentStock : 0;
                             if (currentMWS < quantityNum) {
                                 throw new Error("Insufficient stock in Main Warehouse for transfer.");
                             }
                             
-                            // 2b. WRITES: Deduct from MWS
                             transaction.update(mwsRef, {
                                 currentStock: currentMWS - quantityNum,
                             });
                             
-                            // 2c. WRITES: Add to BranchStock (or WHOLESALE_CLIENTS ledger)
                             const currentDestStock = destStockSnap.exists ? destStockSnap.data().currentStock : 0;
                             
-                            // Use set with merge: true to handle both create and update
                             transaction.set(destStockRef, {
                                 branchId: selectedDestination,
                                 productId: selectedProduct,
@@ -867,7 +820,6 @@ const app = initializeApp(firebaseConfig);
                                 lastRestockedByUserId: userId,
                             }, { merge: true });
 
-                            // 2d. WRITES: Record in TransferHistory 
                             const transferHistoryRef = db.collection(V8_COLLECTIONS.transferHistory).doc(); // Auto-generate ID
                             transaction.set(transferHistoryRef, {
                                 productId: selectedProduct,
@@ -891,7 +843,7 @@ const app = initializeApp(firebaseConfig);
                 } finally {
                     setIsSubmitting(false);
                 }
-            }, [db, userId, quantity, selectedProduct, actionType, selectedDestination, sourceStock, setSystemMessage]); // Dependencies are crucial for useCallback
+            }, [db, userId, quantity, selectedProduct, actionType, selectedDestination, sourceStock, setSystemMessage]);
 
             return (
                 <div className="bg-white p-6 rounded-xl shadow-lg">
@@ -967,7 +919,7 @@ const app = initializeApp(firebaseConfig);
                             <div className="text-sm text-gray-600 font-medium pt-2 border-t mt-4">
                                 {actionType === 'TRANSFER' && (
                                     <p className="mb-1">
-                                        **Source Stock (MWS):** <span className={`font-bold ml-2 ${sourceStock < quantity ? 'text-red-600' : 'text-indigo-600'}`}>
+                                        **Source Stock (MWS):** <span className={`font-bold ml-2 ${sourceStock < Number(quantity) ? 'text-red-600' : 'text-indigo-600'}`}>
                                             {sourceStock}
                                         </span>
                                     </p>
@@ -982,7 +934,7 @@ const app = initializeApp(firebaseConfig);
                             </div>
                         )}
 
-                        <Button type="submit" disabled={isSubmitting || (actionType === 'TRANSFER' && quantityNum > sourceStock && quantityNum > 0)}>
+                        <Button type="submit" disabled={isSubmitting || (actionType === 'TRANSFER' && Number(quantity) > sourceStock && Number(quantity) > 0)}>
                             {isSubmitting ? 'Processing...' : actionType === 'ADD_TO_MWS' ? 'Add to MWS' : 'Execute Transfer'}
                         </Button>
                     </form>
@@ -991,7 +943,7 @@ const app = initializeApp(firebaseConfig);
         });
 
 
-        // Admin Sub-Component: Product Management Modal (Moved outside to ensure stability)
+        // Admin Sub-Component: Product Management Modal
         const ProductManagementModal = ({ 
             editingProduct, form, handleFormChange, handleSave, setIsModalOpen 
         }) => {
@@ -1015,7 +967,6 @@ const app = initializeApp(firebaseConfig);
                                     />
                                 </div>
                             ))}
-                            {/* Updated Size input with helper text for consumables */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Size / Category</label>
                                 <input
@@ -1084,13 +1035,11 @@ const app = initializeApp(firebaseConfig);
                 setIsModalOpen(true);
             };
 
-            // Stabilized function for handling input changes
             const handleFormChange = useCallback((e) => {
                 const { name, value } = e.target;
                 setForm(prevForm => ({ ...prevForm, [name]: value }));
             }, []);
 
-            // Stabilized function for saving the form
             const handleSave = useCallback(async (e) => {
                 e.preventDefault();
                 setSystemMessage({ type: '', text: 'Saving product...' });
@@ -1102,12 +1051,10 @@ const app = initializeApp(firebaseConfig);
                     };
                     
                     if (editingProduct) {
-                        // V8 Update/Edit
                         const docRef = db.collection(V8_COLLECTIONS.inventory).doc(editingProduct.id);
                         await docRef.update(dataToSave);
                         setSystemMessage({ type: 'success', text: `Product ${editingProduct.id} updated successfully.` });
                     } else {
-                        // V8 Create/Add
                         await db.collection(V8_COLLECTIONS.inventory).add(dataToSave);
                         setSystemMessage({ type: 'success', text: `New product added successfully.` });
                     }
@@ -1118,7 +1065,6 @@ const app = initializeApp(firebaseConfig);
                 }
             }, [db, editingProduct, form, setSystemMessage]);
 
-            // Stabilized function for deleting a product
             const handleDelete = useCallback(async (productId) => {
                 // NOTE: Replaced window.confirm with a simpler check for this environment
                 if (prompt("Type 'DELETE' to confirm deletion. This action cannot be undone.") !== "DELETE") {
@@ -1126,7 +1072,6 @@ const app = initializeApp(firebaseConfig);
                     return;
                 }
 
-                // Check for dependencies (BranchStock, Pending Requests)
                 const isUsedInStock = Object.values(branchStock).some(branch => branch[productId]);
                 const isUsedInPendingRequest = requests.some(r => r.productId === productId && r.status === 'Pending');
 
@@ -1140,7 +1085,6 @@ const app = initializeApp(firebaseConfig);
 
                 setSystemMessage({ type: '', text: 'Deleting product...' });
                 try {
-                    // V8 Delete
                     await db.collection(V8_COLLECTIONS.inventory).doc(productId).delete();
                     setSystemMessage({ type: 'success', text: 'Product deleted successfully.' });
                 } catch (error) {
@@ -1159,7 +1103,7 @@ const app = initializeApp(firebaseConfig);
                         <ProductManagementModal 
                             editingProduct={editingProduct}
                             form={form}
-                            handleFormChange={handleFormChange} // Pass the stabilized handler
+                            handleFormChange={handleFormChange}
                             handleSave={handleSave}
                             setIsModalOpen={setIsModalOpen}
                         />
@@ -1205,7 +1149,6 @@ const app = initializeApp(firebaseConfig);
         const BranchStockViewer = ({ inventory, branchStock, branches, findProductById }) => {
             const [selectedBranch, setSelectedBranch] = useState('');
             
-            // Filter stock data for the selected branch
             const filteredStock = useMemo(() => {
                 if (!selectedBranch || !branchStock[selectedBranch]) return [];
 
@@ -1271,7 +1214,7 @@ const app = initializeApp(firebaseConfig);
                                             <td className={`py-3 px-4 whitespace-nowrap text-sm font-bold ${item.isLow ? 'text-red-700' : 'text-green-700'}`}>
                                                 {item.currentStock} {item.unitOfMeasure}
                                             </td>
-                                            <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-500">{item.lowStockThreshold}</td>
+                                            <td className="py-3 px-4 whitespace-nowNrap text-sm text-gray-500">{item.lowStockThreshold}</td>
                                             <td className={`py-3 px-4 whitespace-nowrap text-xs font-semibold`}>
                                                 <span className={`px-2 inline-flex leading-5 rounded-full ${item.isLow ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                                                     {item.isLow ? 'LOW' : 'OK'}
@@ -1526,14 +1469,11 @@ const app = initializeApp(firebaseConfig);
 
         const StaffInterface = ({ db, userId, branchId, inventory, branchStock, requests, findProductById }) => {
             
-            // Group requests for staff history
             const staffRequests = useMemo(() => {
                 return requests.filter(r => r.branchId === branchId);
             }, [requests, branchId]);
 
-            // Filter staff inventory to only show items they actually stock
             const staffInventory = useMemo(() => {
-                // branchStock for staff is structured as { productId: data }
                 const stockedProductIds = Object.keys(branchStock);
                 
                 return inventory.filter(item => stockedProductIds.includes(item.id));
@@ -1576,13 +1516,11 @@ const app = initializeApp(firebaseConfig);
             const [isSubmitting, setIsSubmitting] = useState(false);
             const [message, setMessage] = useState({ type: '', text: '' });
 
-            // 1. Get Unique Sizes (including 'Consumable' or any other category)
             const uniqueSizes = useMemo(() => {
                 const sizes = staffInventory.map(item => item.size);
                 return [...new Set(sizes)].sort();
             }, [staffInventory]);
 
-            // 2. Filter Products based on selected Size/Category
             const filteredProducts = useMemo(() => {
                 if (!selectedSize) return [];
                 return staffInventory
@@ -1590,12 +1528,10 @@ const app = initializeApp(firebaseConfig);
                     .sort((a, b) => getProductNameDisplay(a).localeCompare(getProductNameDisplay(b)));
             }, [staffInventory, selectedSize]);
 
-            // Reset product selection if size changes
             useEffect(() => {
                 setSelectedProduct('');
             }, [selectedSize]);
 
-            // Get current stock for the selected product
             const currentStock = useMemo(() => {
                 if (!selectedProduct) return 0;
                 return branchStock[selectedProduct]?.currentStock || 0;
@@ -1618,7 +1554,6 @@ const app = initializeApp(firebaseConfig);
                 setMessage({ type: '', text: 'Submitting request for Admin approval...' });
                 
                 try {
-                    // V8 Add Document
                     await db.collection(V8_COLLECTIONS.requests).add({
                         branchId,
                         productId: selectedProduct,
@@ -1770,7 +1705,7 @@ const app = initializeApp(firebaseConfig);
                                             </td>
                                         </tr>
                                     );
-                                })}
+D                                })}
                             </tbody>
                         </table>
                         <p className="mt-4 text-xs text-gray-500 italic">Showing latest {Math.min(10, staffRequests.length)} requests.</p>
@@ -1782,7 +1717,6 @@ const app = initializeApp(firebaseConfig);
         // Staff Sub-Component: Branch Inventory Status
         const BranchInventoryStatus = ({ staffInventory, branchStock }) => {
             
-            // Combine inventory details with current stock
             const statusData = useMemo(() => {
                 return staffInventory.map(product => {
                     const stock = branchStock[product.id]?.currentStock || 0;
@@ -1834,7 +1768,6 @@ const app = initializeApp(firebaseConfig);
 
 
         // --- RENDERING ---
-        // FIX: Use createRoot for React 18 compatibility
         const rootElement = document.getElementById('root');
         const root = ReactDOM.createRoot(rootElement);
         root.render(<App />);
