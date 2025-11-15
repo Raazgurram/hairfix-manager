@@ -39,8 +39,23 @@
 
         // --- ENVIRONMENT VARIABLES (Accessing runtime provided configuration) ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDPP0tzpEzzx8-lwuZ3u6E1DUPNLXYPrgQ",
+  authDomain: "hairfix-inventory-app.firebaseapp.com",
+  projectId: "hairfix-inventory-app",
+  storageBucket: "hairfix-inventory-app.firebasestorage.app",
+  messagingSenderId: "467690326000",
+  appId: "1:467690326000:web:53110ce47ea42a817dbf35"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
         // Initialize App (This uses V8/Compat syntax)
         let firebaseApp;
